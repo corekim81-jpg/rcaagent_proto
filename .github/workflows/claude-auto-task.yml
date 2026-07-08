@@ -1,6 +1,7 @@
 name: Claude Auto Task
 
-# 이슈에 "claude-task" 라벨을 달면 Claude Code가 자동으로:
+# 이슈에 "claude-task" 라벨이 있으면 (생성 시 템플릿으로 바로 붙거나, 나중에 수동으로 달아도)
+# Claude Code가 자동으로:
 #  1. 브랜치 생성
 #  2. 이슈 내용을 바탕으로 TDD로 구현 (테스트 먼저 -> 구현)
 #  3. ruff lint + pytest 통과 확인 (실패 시 커밋하지 않음)
@@ -15,7 +16,7 @@ name: Claude Auto Task
 
 on:
   issues:
-    types: [labeled]
+    types: [opened, labeled]
 
 permissions:
   contents: write
@@ -29,7 +30,7 @@ concurrency:
 
 jobs:
   claude-task:
-    if: github.event.label.name == 'claude-task'
+    if: contains(github.event.issue.labels.*.name, 'claude-task')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
