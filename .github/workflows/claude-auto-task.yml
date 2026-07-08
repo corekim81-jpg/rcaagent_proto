@@ -9,7 +9,8 @@ name: Claude Auto Task
 # 배치 위치: .github/workflows/claude-auto-task.yml
 #
 # 사전 준비:
-#  - repo Settings > Secrets and variables > Actions 에 ANTHROPIC_API_KEY 등록
+#  - 로컬에서 `claude setup-token` 실행 -> 발급된 OAuth 토큰을
+#    repo Settings > Secrets and variables > Actions 에 CLAUDE_CODE_OAUTH_TOKEN 이름으로 등록
 #  - https://github.com/apps/claude 에서 Claude GitHub App 설치 (Contents/Issues/PR read&write)
 
 on:
@@ -50,7 +51,7 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           label_trigger: "claude-task"
           branch_prefix: "issue-"
           base_branch: "main"
