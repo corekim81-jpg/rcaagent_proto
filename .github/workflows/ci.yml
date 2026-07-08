@@ -1,0 +1,33 @@
+name: CI
+
+# 배치 위치: .github/workflows/ci.yml
+# 모든 PR과 main push에서 lint/test를 다시 게이트로 검사한다.
+# (Claude가 자체적으로 lint/test를 통과시켰더라도, merge 전 최종 안전장치로 유지)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e . || true; fi
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Test (pytest)
+        run: pytest -v

@@ -1,0 +1,76 @@
+name: Claude Auto Task
+
+# 이슈에 "claude-task" 라벨을 달면 Claude Code가 자동으로:
+#  1. 브랜치 생성
+#  2. 이슈 내용을 바탕으로 TDD로 구현 (테스트 먼저 -> 구현)
+#  3. ruff lint + pytest 통과 확인 (실패 시 커밋하지 않음)
+#  4. 커밋 -> 브랜치 push -> PR 자동 생성 (이슈 자동 close 연결)
+#
+# 배치 위치: .github/workflows/claude-auto-task.yml
+#
+# 사전 준비:
+#  - repo Settings > Secrets and variables > Actions 에 ANTHROPIC_API_KEY 등록
+#  - https://github.com/apps/claude 에서 Claude GitHub App 설치 (Contents/Issues/PR read&write)
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: claude-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude-task:
+    if: github.event.label.name == 'claude-task'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project + lint/test tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e . || true; fi
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          label_trigger: "claude-task"
+          branch_prefix: "issue-"
+          base_branch: "main"
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: #${{ github.event.issue.number }}
+            ISSUE TITLE: ${{ github.event.issue.title }}
+            ISSUE BODY:
+            ${{ github.event.issue.body }}
+
+            이 이슈에서 요청한 변경 사항을 다음 순서로 구현해:
+            1. 요청된 동작을 검증하는 실패하는 테스트를 먼저 작성/수정한다 (TDD).
+            2. 테스트를 통과시키는 최소한의 코드를 구현한다.
+            3. `ruff check .` 를 실행하고 lint 오류를 모두 수정한다.
+            4. `pytest` 를 실행하고 모든 테스트가 통과하는지 확인한다. lint 또는 테스트가
+               실패하면 절대 커밋하지 말고 원인을 고쳐서 다시 검사한다.
+            5. lint와 테스트가 모두 통과한 뒤에만, 변경 사항을 의미 있는 커밋 메시지로
+               커밋한다. 커밋 메시지 또는 PR 본문에 "Closes #${{ github.event.issue.number }}"
+               를 반드시 포함한다.
+            6. 브랜치를 push 하고, 이 이슈를 닫는 Pull Request를 연다.
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Bash,Edit,Read,Write,Grep,Glob"
